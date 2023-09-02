@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import psycopg2
 from decouple import config
+
 db_host = config('DB_HOST')
 db_port = config('DB_PORT')
 db_user = config('DB_USER')
@@ -34,7 +35,8 @@ try:
     page_number = 0  # Start with the first page
     while True:
         # Create the URL for the current page
-        url = f"{base_url}?count=100&offset={page_number * 100}"  # Assuming each page shows 25 items
+        # Assuming each page shows 25 items
+        url = f"{base_url}?offset={page_number * 25}&count=25"
         print(url)
         # Send an HTTP GET request to the current page
         response = requests.get(url)
@@ -53,11 +55,11 @@ try:
 
             # Create empty lists to store the data
             stock_data = []
-
+            # print(table.prettify())
             # Iterate through rows in the table
             for row in table.find_all("tr")[1:]:
                 # Extract data from each cell in the row
-                
+
                 cells = row.find_all("td")
                 symbol = cells[0].text.strip()
                 name = cells[1].text.strip()
@@ -65,12 +67,10 @@ try:
                 change = cells[3].text.strip()
                 percent_change = cells[4].text.strip()
                 volume = cells[5].text.strip()
-             
+
                 avg_vol_3_month = cells[6].text.strip()
-                  
-                
+
                 market_cap = cells[7].text.strip()
-          
 
                 # Append the data to the stock_data list
                 stock_data.append({
@@ -82,61 +82,67 @@ try:
                     "Volume": volume,
                     "Avg Vol (3 month)": avg_vol_3_month,
                     "Market Cap": market_cap,
-                
+
                 })
 
             for stock in stock_data:
-                print(stock)
-                percent_change_value = float(stock["Percent Change"].strip('%'))
+
+                percent_change_value = float(
+                    stock["Percent Change"].strip('%'))
                 # Transform volume values like "134.99M" to "134990000"
                 volume_str = stock["Volume"]
                 if volume_str.endswith("M"):
-                    volume_value = float(volume_str[:-1]) * 1000000  # Remove 'M' and multiply by 1 million
+                    # Remove 'M' and multiply by 1 million
+                    volume_value = float(volume_str[:-1]) * 1000000
                 elif volume_str.endswith("T"):
                     volume_value = float(volume_str[:-1]) * 1000000000
                 else:
-                    volume_value =  float(volume_str) 
+                    volume_value = float(volume_str)
 
-                
                 # Transform avg_vol_3_month values like "24.796M" to "24796000"
                 avg_vol_3_month_str = stock["Avg Vol (3 month)"]
                 if avg_vol_3_month_str.endswith("M"):
-                    avg_vol_3_month_value = float(avg_vol_3_month_str[:-1]) * 1000000
+                    avg_vol_3_month_value = float(
+                        avg_vol_3_month_str[:-1]) * 1000000
 
                 elif avg_vol_3_month_str.endswith("T"):
-                    avg_vol_3_month_value = float(avg_vol_3_month_str[:-1]) * 1000000000
+                    avg_vol_3_month_value = float(
+                        avg_vol_3_month_str[:-1]) * 1000000000
                 else:
                     avg_vol_3_month_value = float(avg_vol_3_month_str)
-                
+
                 # Transform market_cap values like "2.259B" to "2259000000"
                 market_cap_str = stock["Market Cap"]
                 if market_cap_str.endswith("B"):
-                    market_cap_value = float(market_cap_str[:-1]) * 1000000  # Remove 'B' and multiply by 1 billion
+                    # Remove 'B' and multiply by 1 billion
+                    market_cap_value = float(market_cap_str[:-1]) * 1000000
                 elif market_cap_str.endswith("T"):
-                    market_cap_value = float(market_cap_str[:-1]) * 1000000000  # Remove 'T' and multiply by 1 trillion
+                    # Remove 'T' and multiply by 1 trillion
+                    market_cap_value = float(market_cap_str[:-1]) * 1000000000
                 else:
                     market_cap_value = float(market_cap_str)
-                
-              
-   
-              
-              
+
+                print(stock["Symbol"], stock["Name"])
+
                 # Insert data into the database
                 cursor.execute(insert_query, (
                     stock["Symbol"], stock["Name"], stock["Price"], stock["Change"],
-                    percent_change_value, volume_value,avg_vol_3_month_value,market_cap_value
-                  
+                    percent_change_value, volume_value, avg_vol_3_month_value, market_cap_value
 
-                )) 
-              
+
+                ))
+
           # Commit the changes for each page
             conn.commit()
 
             # Increment the page number to navigate to the next page
             page_number += 1
+            if (page_number == 2):
+                break
             print('pagina '+str(page_number)+' '+'completata')
         else:
-            print("Failed to retrieve the web page. Status code:", response.status_code)
+            print("Failed to retrieve the web page. Status code:",
+                  response.status_code)
             break
 
     # Close the cursor and connection
