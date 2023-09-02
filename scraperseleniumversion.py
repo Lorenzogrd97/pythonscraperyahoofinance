@@ -1,10 +1,14 @@
 import time
 from selenium import webdriver
-from bs4 import BeautifulSoup
-import psycopg2
-from decouple import config
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import psycopg2
+from decouple import config
+
 # Retrieve database connection parameters from environment variables or a configuration file
 db_host = config('DB_HOST')
 db_port = config('DB_PORT')
@@ -30,19 +34,13 @@ try:
     conn = psycopg2.connect(**db_params)
     cursor = conn.cursor()
 
-    # Define the SQL statement to insert data into the table (modify as per your table structure)
-    # insert_query = """
-    # INSERT INTO stocks (symbol, name, price, change, percent_change, volume, avg3month, market_cap)
-    # VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-    # """
-
     # Create FirefoxOptions
     firefox_options = FirefoxOptions()
-    firefox_options.add_argument('--headless')
 
     # Create a FirefoxService instance (you don't need to specify the executable_path)
     # Create a FirefoxService instance with log output
-    firefox_service = FirefoxService(log_path='/usr/local/bin/geckodriver.log')
+    firefox_service = FirefoxService(
+        log_path='/Users/lorenzopassamonti/Developer/pythonscraperyahoofinance/geckodriver.log')
 
     # Initialize the Firefox WebDriver with the FirefoxService and FirefoxOptions
     browser = webdriver.Firefox(
@@ -50,53 +48,74 @@ try:
 
     page_number = 0  # Start with the first page
     while True:
-        # Create the URL for the current page
-        # Assuming each page shows 25 items
-        url = f"{base_url}?offset={page_number * 25}&count=25"
-        print(url)
+        if page_number == 0:
+            # Create the URL for the current page
+            # Assuming each page shows 25 items
+            url = f"{base_url}"
+            print(url)
 
-        # Load the URL in the headless browser
-        browser.get(url)
-        # Wait for page to load (you might need to adjust the time based on your internet speed)
-        time.sleep(5)
+            # Load the URL in the headless browser
+            browser.get(url)
 
-        # Get the fully rendered HTML using Selenium
-        page_source = browser.page_source
-        soup = BeautifulSoup(page_source, 'html.parser')
+            # Wait for the "Load More" button to be clickable
+            load_more_button = WebDriverWait(browser, 10).until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "/html/body/div/div/div/div/form/div[2]/div[2]/button[2]"))
+            )
+            load_more_button.click()
 
-        # Find the table containing the stock data (you may need to inspect the page source to identify the table)
-        table = soup.find("table")
+            # Wait for the page to load (you might need to adjust the time based on your internet speed)
+            time.sleep(10)
 
-        # If the table is not found, it means you've reached the end of the pages
-        if not table:
-            break
+            tables = browser.find_elements(By.TAG_NAME, 'table')
 
-        # Iterate through rows in the table and extract data
-        for row in table.find_all("tr")[1:]:
-            cells = row.find_all("td")
-            symbol = cells[0].text.strip()
-            name = cells[1].text.strip()
-            price = cells[2].text.strip()
-            change = cells[3].text.strip()
-            percent_change = cells[4].text.strip()
-            volume = cells[5].text.strip()
-            avg_vol_3_month = cells[6].text.strip()
-            market_cap = cells[7].text.strip()
+            if tables:
+                # Assuming you want to scrape the first table found on the page
+                table = tables[0]
+                # Extract data from the table
+                rows = table.find_elements(
+                    By.TAG_NAME, 'tr')  # Find all table rows
+                for row in rows:
+                    # Extract data from each row
+                    # Find all table cells in the row
+                    cells = row.find_elements(By.TAG_NAME, 'td')
+                    for cell in cells:
+                        print(cell.text)  # Print the text content of each cell
+            else:
+                print("No tables found on the page")
+                time.sleep(2000000)
 
-            # Transform data as needed (volume, avg_vol_3_month, market_cap)
+            # Increment the page number to navigate to the next page
+            page_number += 1
 
-            # Insert data into the database
-            cursor.execute(insert_query, (
-                symbol, name, price, change, percent_change, volume, avg_vol_3_month, market_cap
-            ))
+        else:
+            # Wait for the "Load More" button to be clickable on subsequent pages
+            load_more_button = WebDriverWait(browser, 10).until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "/html/body/div[1]/div/div/div[1]/div/div[2]/div/div/div[6]/div/div/section/div/div[2]/div[2]/button[3]"))
+            )
+            load_more_button.click()
 
-        # Increment the page number to navigate to the next page
-        page_number += 1
-        print('Page ' + str(page_number) + ' completed')
+            # Wait for the page to load (you might need to adjust the time based on your internet speed)
+            time.sleep(10)
 
-    # Commit the changes after processing all pages
-    conn.commit()
-    print("All Stocks successfully inserted into the database.")
+            tables = browser.find_elements(By.TAG_NAME, 'table')
+
+            if tables:
+                # Assuming you want to scrape the first table found on the page
+                table = tables[0]
+                # Extract data from the table
+                rows = table.find_elements(
+                    By.TAG_NAME, 'tr')  # Find all table rows
+                for row in rows:
+                    # Extract data from each row
+                    # Find all table cells in the row
+                    cells = row.find_elements(By.TAG_NAME, 'td')
+                    for cell in cells:
+                        print(cell.text)  # Print the text content of each cell
+            else:
+                print("No tables found on the page")
+                time.sleep(2000000)
 
 except Exception as e:
     print("Error:", e)
