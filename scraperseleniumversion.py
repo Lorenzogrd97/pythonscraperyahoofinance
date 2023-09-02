@@ -1,5 +1,5 @@
 import time
-from selenium import webdriver
+from seleniumwire import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.firefox.service import Service as FirefoxService
@@ -27,6 +27,7 @@ db_params = {
 
 # Define the base URL of the page you want to scrape
 base_url = "https://finance.yahoo.com/most-active"
+base_url_quote = "https://finance.yahoo.com/quote/"
 gecko_driver_path = "/usr/local/bin/geckodriver"
 
 try:
@@ -79,8 +80,30 @@ try:
                     # Extract data from each row
                     # Find all table cells in the row
                     cells = row.find_elements(By.TAG_NAME, 'td')
-                    for cell in cells:
-                        print(cell.text)  # Print the text content of each cell
+
+                    for index, cell in enumerate(cells):
+                        if index == 0:
+                            url_quote = f"{base_url_quote}" + \
+                                cell.text+"?p"+cell.text
+                            print(url_quote)
+                            # Check if it's the first iteration
+                            browser.get(url_quote)
+
+                            first_request = browser.requests[0]
+                            last_request = browser.last_request
+                            all_request = browser.requests
+                            for request in all_request:
+                                print(request.url)
+                                print(request.response)
+                                # if request.url.startswith("https://query1.finance.yahoo.com/v8/finance"):
+                                #     if request.response and request.response.status_code:
+
+                                #         print(request.response)
+                                #         print(request.url, request.response.status_code,
+                                #               request.response.headers['Content-Type'])
+                            print("finished")
+                            time.sleep(2000000)
+
             else:
                 print("No tables found on the page")
                 time.sleep(2000000)
