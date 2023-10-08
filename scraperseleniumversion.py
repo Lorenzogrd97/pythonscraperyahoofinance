@@ -6,6 +6,8 @@ from selenium.webdriver.firefox.service import Service as FirefoxService
 from selenium.webdriver.firefox.options import Options as FirefoxOptions
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from seleniumwire.utils import decode
+
 import psycopg2
 from decouple import config
 
@@ -32,8 +34,8 @@ gecko_driver_path = "/usr/local/bin/geckodriver"
 
 try:
     # Establish a connection to the PostgreSQL database
-    conn = psycopg2.connect(**db_params)
-    cursor = conn.cursor()
+    # conn = psycopg2.connect(**db_params)
+    # cursor = conn.cursor()
 
     # Create FirefoxOptions
     firefox_options = FirefoxOptions()
@@ -82,27 +84,28 @@ try:
                     cells = row.find_elements(By.TAG_NAME, 'td')
 
                     for index, cell in enumerate(cells):
-                        if index == 0:
-                            url_quote = f"{base_url_quote}" + \
-                                cell.text+"?p"+cell.text
-                            print(url_quote)
-                            # Check if it's the first iteration
-                            browser.get(url_quote)
+                        print(cell.text)
+                    #     if index == 0:
+                    #         url_quote = f"{base_url_quote}" + \
+                    #             cell.text+"?p"+cell.text
+                    #         print(url_quote)
+                    #         # Check if it's the first iteration
+                    #         browser.get(url_quote)
+                    # for request in all_request:
 
-                            first_request = browser.requests[0]
-                            last_request = browser.last_request
-                            all_request = browser.requests
-                            for request in all_request:
-                                print(request.url)
-                                print(request.response)
-                                # if request.url.startswith("https://query1.finance.yahoo.com/v8/finance"):
-                                #     if request.response and request.response.status_code:
+                        #     body = decode(request.body, request.headers.get(
+                        #         'Content-Encoding', 'identity'))
+                        #     decoded_body = body.decode('utf-8')
+                        #     print(decoded_body)
+                        #     # print(body)
 
-                                #         print(request.response)
-                                #         print(request.url, request.response.status_code,
-                                #               request.response.headers['Content-Type'])
-                            print("finished")
-                            time.sleep(2000000)
+                        #     # if request.url.startswith("https://query1.finance.yahoo.com/v8/finance"):
+                        #     #     if request.response and request.response.status_code:
+
+                        #     #         print(request.response)
+                        #     #         print(request.url, request.response.status_code,
+                        #     #               request.response.headers['Content-Type'])
+                    # print("finished")
 
             else:
                 print("No tables found on the page")
