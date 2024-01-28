@@ -1,9 +1,7 @@
+import pymongo
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import NoSuchElementException
-
-import pymongo
 import time
 
 # MongoDB connection
@@ -15,8 +13,6 @@ collection = db["stock_data"]
 
 
 def scrape_and_insert():
-    base_url = "https://finance.yahoo.com/quote/{}/"
-
     # Selenium setup
     driver = webdriver.Edge()  # Make sure to have Edge WebDriver installed and in PATH
     driver.implicitly_wait(10)  # Implicit wait
@@ -24,7 +20,6 @@ def scrape_and_insert():
     # Navigate to Yahoo Finance
     driver.get("https://finance.yahoo.com/most-active/")
     time.sleep(5)  # Let the page load
-    # scroll-down-btn
     elementScrollDown = driver.find_element(
         By.CSS_SELECTOR, "#scroll-down-btn")
     elementScrollDown.click()
@@ -32,6 +27,7 @@ def scrape_and_insert():
         By.CSS_SELECTOR, "#consent-page > div > div > div > form > div.wizard-body > div.actions.couple > button.btn.secondary.reject-all")
     elementRefuseAll.click()
     time.sleep(5)
+
     # Find the table element
     while True:
         try:
@@ -43,12 +39,27 @@ def scrape_and_insert():
             rows = table.find_elements(By.TAG_NAME, "tr")
 
             # Loop through each row
+            column_names = ["Symbol", "Name", "Price", "Change", "Percent Change",
+                            "Volume", "Avg Vol (3 month)", "Market Cap", "PE Ratio"]
             for row in rows:
-                # Find all cells in the row
                 cells = row.find_elements(By.TAG_NAME, "td")
-                # Loop through each cell and print its text
-                for cell in cells:
-                    print(cell.text)
+                row_data = {}
+
+                # Loop through each cell and insert its text into MongoDB
+                for i, cell in enumerate(cells):
+                    if i < len(column_names):  # Check if column index is within bounds
+                        column_name = column_names[i]
+                        row_data[column_name] = cell.text
+
+                # Check if 'Symbol' key exists in row_data
+                if 'Symbol' in row_data:
+                    symbol = row_data["Symbol"]
+                    existing_record = collection.find_one({"Symbol": symbol})
+                    if existing_record:
+                        collection.update_one(
+                            {"Symbol": symbol}, {"$set": row_data})
+                    else:
+                        collection.insert_one(row_data)
 
             # Find the next page button and click it
             next_page_button = driver.find_element(
@@ -56,8 +67,8 @@ def scrape_and_insert():
             next_page_button.click()
             time.sleep(5)
         except NoSuchElementException:
-            # If no next page button is found, break out of the loop
             break
+
     # Closing Selenium
     driver.quit()
 
@@ -67,8 +78,8 @@ def scrape_and_insert():
 def main():
     while True:
         scrape_and_insert()
-        print("Scraping and insertion completed. Restarting in 24 hours...")
-        time.sleep(86400)  # 24 hours delay
+        print("Scraping and insertion completed. Restarting in 100 seconds...")
+        time.sleep(100)
 
 
 if __name__ == "__main__":
